@@ -3,12 +3,24 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>com.sa.osgi</groupId>
-  <version>1.0.0</version>
-  <artifactId>SaaS.Launcher</artifactId>
-  <dependencies>
+  <packaging>bundle</packaging>
+  <name>Apache Felix for Heroku SaaS</name>
+  <artifactId>com.sa.osgi.saas</artifactId>
+  <version>1.0.0-mao</version>
+  <groupId>org.apache.felix</groupId>
 
-     <dependency>
+  <dependencies>
+    <dependency>
+      <groupId>com.sparkjava</groupId>
+      <artifactId>spark-core</artifactId>
+      <version>2.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.sparkjava</groupId>
+      <artifactId>spark-template-freemarker</artifactId>
+      <version>2.0.0</version>
+    </dependency>
+    <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
       <version>9.4-1201-jdbc4</version>
@@ -18,29 +30,48 @@
       <artifactId>heroku-jdbc</artifactId>
       <version>0.1.1</version>
     </dependency>
-
-    	<!--
     <dependency>
-	  <groupId>org.apache.felix</groupId>
-	  <artifactId>org.apache.felix.bundlerepository</artifactId>
-	  <version>2.0.4</version>
-	</dependency>
-  -->
+      <groupId>${project.groupId}</groupId>
+      <artifactId>org.apache.felix.framework</artifactId>
+      <version>5.2.0</version>
+    </dependency>
 
   </dependencies>
+
+
+  <properties>
+    <log.level>4</log.level>
+    <dollar>$</dollar>
+    <gogo.runtime.version>0.16.2</gogo.runtime.version>
+    <gogo.shell.version>0.10.0</gogo.shell.version>
+    <gogo.command.version>0.14.0</gogo.command.version>
+    <obr.version>2.0.2</obr.version>
+  </properties>
+  <profiles>
+    <profile>
+      <id>release</id>
+      <properties>
+        <log.level>1</log.level>
+        <dollar>$</dollar>
+      </properties>
+    </profile>
+  </profiles>
+
+
   <build>
     <plugins>
       <plugin>
-    <groupId>org.apache.maven.plugins</groupId>
-    <artifactId>maven-compiler-plugin</artifactId>
-    <version>2.5.1</version>
-    <configuration>
+	    <groupId>org.apache.maven.plugins</groupId>
+	    <artifactId>maven-compiler-plugin</artifactId>
+	    <version>2.5.1</version>
+       <configuration>
         <source>1.8</source>
         <target>1.8</target>
         <optimize>true</optimize>
         <debug>true</debug>
-    </configuration>
-</plugin>
+       </configuration>
+    </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
@@ -53,6 +84,120 @@
           </execution>
         </executions>
       </plugin>
+
+
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <version>2.5.0</version>
+        <extensions>true</extensions>
+        <configuration>
+          <instructions>
+            <_donotcopy>(CVS|.svn|config.properties)</_donotcopy>
+            <Main-Class>org.apache.felix.main.Main</Main-Class>
+            <Bundle-SymbolicName>org.apache.felix.main</Bundle-SymbolicName>
+            <Bundle-Name>Apache Felix</Bundle-Name>
+            <Bundle-Description>OSGi R6 framework.</Bundle-Description>
+            <Bundle-Vendor>The Apache Software Foundation</Bundle-Vendor>
+            <Embed-Dependency>*;artifactId=org.apache.felix.framework;inline=true</Embed-Dependency>
+            <Private-Package>org.apache.felix.main.*</Private-Package>
+            <Export-Package>!org.osgi.service.log, !org.osgi.service.obr, org.osgi.*</Export-Package>
+            <Import-Package>!*</Import-Package>
+          </instructions>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy</id>
+            <phase>package</phase>
+            <goals>
+              <goal>copy</goal>
+            </goals>
+            <configuration>
+                <artifactItems>
+                  <artifactItem>
+                     <groupId>${project.groupId}</groupId>
+                     <artifactId>org.apache.felix.gogo.runtime</artifactId>
+                     <version>${gogo.runtime.version}</version>
+                     <type>jar</type>
+                     <overWrite>true</overWrite>
+                     <outputDirectory>${project.basedir}/target/bundle</outputDirectory>
+                   </artifactItem>
+                   <artifactItem>
+                     <groupId>${project.groupId}</groupId>
+                     <artifactId>org.apache.felix.gogo.shell</artifactId>
+                     <version>${gogo.shell.version}</version>
+                     <type>jar</type>
+                     <overWrite>true</overWrite>
+                     <outputDirectory>${project.basedir}/target/bundle</outputDirectory>
+                   </artifactItem>
+                   <artifactItem>
+                     <groupId>${project.groupId}</groupId>
+                     <artifactId>org.apache.felix.gogo.command</artifactId>
+                     <version>${gogo.command.version}</version>
+                     <type>jar</type>
+                     <overWrite>true</overWrite>
+                     <outputDirectory>${project.basedir}/target/bundle</outputDirectory>
+                   </artifactItem>
+                   <artifactItem>
+                     <groupId>${project.groupId}</groupId>
+                     <artifactId>org.apache.felix.bundlerepository</artifactId>
+                     <version>${obr.version}</version>
+                     <type>jar</type>
+                     <overWrite>true</overWrite>
+                     <outputDirectory>${project.basedir}/target/bundle</outputDirectory>
+                   </artifactItem>
+                 </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <configuration>
+              <tasks>
+<!-- 
+               <delete dir="${basedir}/bin" />
+                <mkdir dir="${basedir}/bin" />
+
+                <delete dir="${basedir}/conf" />
+                <mkdir dir="${basedir}/conf" />
+-->
+<!--                <copy file="${basedir}/target/com.sa.osgi.saas-${project.version}.jar" tofile="${basedir}/bin/felix.jar" /> -->
+
+                <copy file="${basedir}/target/classes/config.properties" todir="${basedir}/target" />
+
+		  <delete>
+		    <fileset dir="${basedir}/target/dependency/" includes="org.apache.felix.*.jar"/>
+		  </delete>
+
+		<delete dir="${basedir}/target/classes" />
+		<delete dir="${basedir}/target/generated-sources" />
+              </tasks>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
     </plugins>
+
+
+
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources> 
+
   </build>
 </project>
