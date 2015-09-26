@@ -1,0 +1,1 @@
+web:  java -Dorg.osgi.service.http.port=$PORT -jar bin/felix.jar 
