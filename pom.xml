@@ -100,7 +100,7 @@
             <Bundle-Description>OSGi R6 framework.</Bundle-Description>
             <Bundle-Vendor>The Apache Software Foundation</Bundle-Vendor>
             <Embed-Dependency>*;artifactId=org.apache.felix.framework;inline=true</Embed-Dependency>
-            <Private-Package>org.apache.felix.main.*</Private-Package>
+            <Private-Package>org.apache.felix.main.*,com.sa.osgi.system</Private-Package>
             <Export-Package>!org.osgi.service.log, !org.osgi.service.obr, org.osgi.*</Export-Package>
             <Import-Package>!*</Import-Package>
           </instructions>
@@ -124,7 +124,7 @@
                      <version>${gogo.runtime.version}</version>
                      <type>jar</type>
                      <overWrite>true</overWrite>
-                     <outputDirectory>${project.basedir}/target/bundle</outputDirectory>
+                     <outputDirectory>${project.basedir}/bundle</outputDirectory>
                    </artifactItem>
                    <artifactItem>
                      <groupId>${project.groupId}</groupId>
@@ -132,7 +132,7 @@
                      <version>${gogo.shell.version}</version>
                      <type>jar</type>
                      <overWrite>true</overWrite>
-                     <outputDirectory>${project.basedir}/target/bundle</outputDirectory>
+                     <outputDirectory>${project.basedir}/bundle</outputDirectory>
                    </artifactItem>
                    <artifactItem>
                      <groupId>${project.groupId}</groupId>
@@ -140,7 +140,7 @@
                      <version>${gogo.command.version}</version>
                      <type>jar</type>
                      <overWrite>true</overWrite>
-                     <outputDirectory>${project.basedir}/target/bundle</outputDirectory>
+                     <outputDirectory>${project.basedir}/bundle</outputDirectory>
                    </artifactItem>
                    <artifactItem>
                      <groupId>${project.groupId}</groupId>
@@ -148,7 +148,7 @@
                      <version>${obr.version}</version>
                      <type>jar</type>
                      <overWrite>true</overWrite>
-                     <outputDirectory>${project.basedir}/target/bundle</outputDirectory>
+                     <outputDirectory>${project.basedir}/bundle</outputDirectory>
                    </artifactItem>
                  </artifactItems>
             </configuration>

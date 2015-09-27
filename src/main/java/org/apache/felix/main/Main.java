@@ -18,13 +18,18 @@
  */
 package org.apache.felix.main;
 
+import com.sa.osgi.system.MaoService;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 import org.apache.felix.framework.util.Util;
+import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkEvent;
+import org.osgi.framework.ServiceReference;
 import org.osgi.framework.launch.Framework;
 import org.osgi.framework.launch.FrameworkFactory;
 
@@ -78,7 +83,7 @@ public class Main
     public static final String CONFIG_DIRECTORY = "conf";
 
     private static Framework m_fwk = null;
-
+    private static BundleContext systemCtx = null;
     /**
      * <p>
      * This method performs the main task of constructing an framework instance
@@ -296,7 +301,8 @@ public class Main
             m_fwk.init();
             // Use the system bundle context to process the auto-deploy
             // and auto-install/auto-start properties.
-            AutoProcessor.process(configProps, m_fwk.getBundleContext());
+            systemCtx = m_fwk.getBundleContext();
+            AutoProcessor.process(configProps, systemCtx);
             FrameworkEvent event;
             do
             {
@@ -590,8 +596,38 @@ public class Main
             port(Integer.valueOf(System.getenv("PORT")));
     staticFileLocation("/public");
 
+    Main APP = new Main();
+    
     get("/", (req, res) -> "Hello World");
-
+    get("/listRB",(req, res) -> {
+        MaoService service = APP.getMaoService();
+        return service.getAllBundles();
+    });
+    get("/lb",(req, res) -> {
+        StringBuilder builder = new StringBuilder();
+        if(systemCtx != null){
+            Bundle[] bundles = systemCtx.getBundles();
+            for(Bundle b:bundles){
+                builder.append("symbolic.name: "+b.getSymbolicName()+",version: "+b.getVersion()+",location: "+b.getLocation()+"<br>");
+            }            
+        }
+        return builder.toString();
+    });
+    
+    get("/install", (req, res) -> {
+            String name = req.queryParams("name");
+            String version = req.queryParams("version");
+            
+            if(name == null || version == null){
+                return "bundle: "+name+", version: "+version +"NULL error!";
+            }else{
+                MaoService service = APP.getMaoService();
+                boolean b = service.installBundle(name,version);
+                return "installed bundle: "+name+", result: "+b;
+            }
+            
+            
+        });
 //    get("/", (request, response) -> {
 //            Map<String, Object> attributes = new HashMap<>();
 //            attributes.put("message", "Hello World!");
@@ -599,4 +635,18 @@ public class Main
 //            return new ModelAndView(attributes, "index.ftl");
 //        }, new FreeMarkerEngine());
     }
+    private static MaoService maoService;
+    
+    private MaoService getMaoService(){
+        if (maoService != null){
+            return maoService;
+        }
+        if(systemCtx!=null){
+            ServiceReference<?> maoRef = systemCtx.getServiceReference(MaoService.class.getName());
+            maoService = (MaoService)systemCtx.getService(maoRef);
+        }
+        
+        return maoService;
+    }
+    
 }
