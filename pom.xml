@@ -7,7 +7,7 @@
   <name>Apache Felix for Heroku SaaS</name>
   <artifactId>com.sa.osgi.saas</artifactId>
   <version>1.0.0-mao</version>
-  <groupId>org.apache.felix</groupId>
+  <groupId>com.sa.osgi</groupId>
 
   <dependencies>
     <dependency>
@@ -31,7 +31,7 @@
       <version>0.1.1</version>
     </dependency>
     <dependency>
-      <groupId>${project.groupId}</groupId>
+      <groupId>org.apache.felix</groupId>
       <artifactId>org.apache.felix.framework</artifactId>
       <version>5.2.0</version>
     </dependency>
@@ -94,13 +94,13 @@
         <configuration>
           <instructions>
             <_donotcopy>(CVS|.svn|config.properties)</_donotcopy>
-            <Main-Class>org.apache.felix.main.Main</Main-Class>
+            <Main-Class>com.sa.osgi.main.Main</Main-Class>
             <Bundle-SymbolicName>org.apache.felix.main</Bundle-SymbolicName>
-            <Bundle-Name>Apache Felix</Bundle-Name>
+            <Bundle-Name>Apache Felix for SaaS</Bundle-Name>
             <Bundle-Description>OSGi R6 framework.</Bundle-Description>
             <Bundle-Vendor>The Apache Software Foundation</Bundle-Vendor>
             <Embed-Dependency>*;artifactId=org.apache.felix.framework;inline=true</Embed-Dependency>
-            <Private-Package>org.apache.felix.main.*,com.sa.osgi.system</Private-Package>
+            <Private-Package>com.sa.osgi.identify.*,com.sa.osgi.main.*,com.sa.osgi.system</Private-Package>
             <Export-Package>!org.osgi.service.log, !org.osgi.service.obr, org.osgi.*</Export-Package>
             <Import-Package>!*</Import-Package>
           </instructions>
@@ -119,7 +119,7 @@
             <configuration>
                 <artifactItems>
                   <artifactItem>
-                     <groupId>${project.groupId}</groupId>
+                     <groupId>org.apache.felix</groupId>
                      <artifactId>org.apache.felix.gogo.runtime</artifactId>
                      <version>${gogo.runtime.version}</version>
                      <type>jar</type>
@@ -127,7 +127,7 @@
                      <outputDirectory>${project.basedir}/bundle</outputDirectory>
                    </artifactItem>
                    <artifactItem>
-                     <groupId>${project.groupId}</groupId>
+                     <groupId>org.apache.felix</groupId>
                      <artifactId>org.apache.felix.gogo.shell</artifactId>
                      <version>${gogo.shell.version}</version>
                      <type>jar</type>
@@ -135,7 +135,7 @@
                      <outputDirectory>${project.basedir}/bundle</outputDirectory>
                    </artifactItem>
                    <artifactItem>
-                     <groupId>${project.groupId}</groupId>
+                     <groupId>org.apache.felix</groupId>
                      <artifactId>org.apache.felix.gogo.command</artifactId>
                      <version>${gogo.command.version}</version>
                      <type>jar</type>
@@ -143,7 +143,7 @@
                      <outputDirectory>${project.basedir}/bundle</outputDirectory>
                    </artifactItem>
                    <artifactItem>
-                     <groupId>${project.groupId}</groupId>
+                     <groupId>org.apache.felix</groupId>
                      <artifactId>org.apache.felix.bundlerepository</artifactId>
                      <version>${obr.version}</version>
                      <type>jar</type>

@@ -16,19 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.felix.main;
+package com.sa.osgi.main;
 
+import com.sa.osgi.identify.Credential;
 import com.sa.osgi.system.MaoService;
+import com.sa.osgi.system.UIService;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.felix.framework.util.Util;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkEvent;
+import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
 import org.osgi.framework.launch.Framework;
 import org.osgi.framework.launch.FrameworkFactory;
@@ -628,6 +633,24 @@ public class Main
             
             
         });
+    
+    get("/welcome", (req,res) ->{
+        StringBuilder buffer = new StringBuilder();
+        String userID = req.queryParams("user");
+        String tenantID = req.queryParams("tenant");
+        Credential cre = new Credential();
+        cre.setTennantName(tenantID);
+        cre.setUserName(userID);
+        
+        UIService uiService = APP.getUIService(cre);
+        String color = uiService.getBackgroundColor();
+        String dateFormatter = uiService.getDateFormat();
+        
+        buffer.append("Color: "+color + "<br>");
+        buffer.append("Formatter: "+dateFormatter);
+        
+        return buffer.toString();
+    });
 //    get("/", (request, response) -> {
 //            Map<String, Object> attributes = new HashMap<>();
 //            attributes.put("message", "Hello World!");
@@ -636,6 +659,7 @@ public class Main
 //        }, new FreeMarkerEngine());
     }
     private static MaoService maoService;
+    private static UIService uiService;
     
     private MaoService getMaoService(){
         if (maoService != null){
@@ -649,4 +673,37 @@ public class Main
         return maoService;
     }
     
+    /**
+     * http://www.ietf.org/rfc/rfc1960.txt
+     * @param credential
+     * @return 
+     */
+    private UIService getUIService(Credential credential){
+
+        if(systemCtx!=null){
+            try {
+                String tenantName = credential.getTennantName();
+                String filter = null;
+                if(tenantName!=null){
+                    filter = "(&(objectClass=" + UIService.class.getName() +")"
+                           +  "(vendor="+credential.getTennantName()+") )";
+                }else{
+                    filter =  "(objectClass=" + UIService.class.getName() +")";
+                }                
+                
+                System.out.println("filter: "+filter);
+                ServiceReference<?>[] serviceReferences = systemCtx.getServiceReferences(UIService.class.getName(), filter);
+                if(serviceReferences!=null && serviceReferences.length > 0 ) {
+                    return (UIService)systemCtx.getService(serviceReferences[0]);
+                }
+                
+                ServiceReference<?> maoRef = systemCtx.getServiceReference(UIService.class.getName());
+                return (UIService)systemCtx.getService(maoRef);
+            } catch (InvalidSyntaxException ex) {
+                Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        
+        return uiService;
+    }
 }
