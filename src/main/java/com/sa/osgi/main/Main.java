@@ -24,6 +24,7 @@ import com.sa.osgi.system.UIService;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -647,13 +648,16 @@ public class Main
         String color = uiService.getBackgroundColor();
         String dateFormatter = uiService.getDateFormat();
         
+        SimpleDateFormat sdf = new SimpleDateFormat(dateFormatter);
+        String nowString = sdf.format(new Date()); 
+        
         buffer.append("<html>");        
         buffer.append("<body >");  
         
         
         buffer.append("<table style=\"background:"+color+"\">");  
         buffer.append("<tr><td>Background Color: "+color +"</td></tr>");
-        buffer.append("<tr><td>Formatter: "+dateFormatter +"</td></tr>");
+        buffer.append("<tr><td>Formatter: "+nowString +"</td></tr>");
         buffer.append("</table>");  
         
         buffer.append("</body>");        
@@ -694,14 +698,17 @@ public class Main
 
         if(systemCtx!=null){
             try {
+                
+                String defaultFilter = "(&(objectClass=" + UIService.class.getName() +")"
+                           +  "(vendor=SA) )";
+                
                 String tenantName = credential.getTennantName();
                 String filter = null;
                 if(tenantName!=null){
                     filter = "(&(objectClass=" + UIService.class.getName() +")"
                            +  "(vendor="+credential.getTennantName()+") )";
                 }else{
-                    filter = "(&(objectClass=" + UIService.class.getName() +")"
-                           +  "(vendor=SA) )";
+                    filter = defaultFilter;
                 }                
                 
                 System.out.println("filter: "+filter);
@@ -710,7 +717,10 @@ public class Main
                     System.out.println("How many services available? "+serviceReferences.length);
                     return (UIService)systemCtx.getService(serviceReferences[0]);
                 }else{
-                    ServiceReference<?> maoRef = systemCtx.getServiceReference(UIService.class.getName());
+                    serviceReferences = systemCtx.getServiceReferences(UIService.class.getName(), defaultFilter);
+                    assert(serviceReferences.length == 1);
+                    
+                    ServiceReference<?> maoRef = serviceReferences[0];
                     return (UIService)systemCtx.getService(maoRef);    
                 }
                 
