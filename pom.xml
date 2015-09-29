@@ -10,6 +10,7 @@
   <groupId>com.sa.osgi</groupId>
 
   <dependencies>
+	  
     <dependency>
       <groupId>com.sparkjava</groupId>
       <artifactId>spark-core</artifactId>
@@ -20,6 +21,25 @@
       <artifactId>spark-template-freemarker</artifactId>
       <version>2.0.0</version>
     </dependency>
+	
+<!--
+	  <dependency>
+	    <groupId>org.eclipse.jetty</groupId>
+	    <artifactId>jetty-annotation</artifactId>
+	    <version>${project.version}</version>
+	  </dependency>
+	  <dependency>
+	    <groupId>org.eclipse.jetty</groupId>
+	    <artifactId>apache-jsp</artifactId>
+	    <version>${project.version}</version>
+	  </dependency>
+	  <dependency>
+	    <groupId>org.eclipse.jetty</groupId>
+	    <artifactId>apache-jstl</artifactId>
+	    <version>${project.version}</version>
+	  </dependency>	
+	-->	
+	
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
@@ -40,7 +60,7 @@
 
 
   <properties>
-    <log.level>4</log.level>
+    <log.level>1</log.level>
     <dollar>$</dollar>
     <gogo.runtime.version>0.16.2</gogo.runtime.version>
     <gogo.shell.version>0.10.0</gogo.shell.version>

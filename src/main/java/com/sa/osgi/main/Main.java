@@ -643,11 +643,23 @@ public class Main
         cre.setUserName(userID);
         
         UIService uiService = APP.getUIService(cre);
+        System.out.println("ui service obj: "+uiService.toString());
         String color = uiService.getBackgroundColor();
         String dateFormatter = uiService.getDateFormat();
         
-        buffer.append("Color: "+color + "<br>");
-        buffer.append("Formatter: "+dateFormatter);
+        buffer.append("<html>");        
+        buffer.append("<body >");  
+        
+        
+        buffer.append("<table style=\"background:"+color+"\">");  
+        buffer.append("<tr><td>Background Color: "+color +"</td></tr>");
+        buffer.append("<tr><td>Formatter: "+dateFormatter +"</td></tr>");
+        buffer.append("</table>");  
+        
+        buffer.append("</body>");        
+        buffer.append("</html>");        
+        
+        
         
         return buffer.toString();
     });
@@ -688,17 +700,21 @@ public class Main
                     filter = "(&(objectClass=" + UIService.class.getName() +")"
                            +  "(vendor="+credential.getTennantName()+") )";
                 }else{
-                    filter =  "(objectClass=" + UIService.class.getName() +")";
+                    filter = "(&(objectClass=" + UIService.class.getName() +")"
+                           +  "(vendor=SA) )";
                 }                
                 
                 System.out.println("filter: "+filter);
                 ServiceReference<?>[] serviceReferences = systemCtx.getServiceReferences(UIService.class.getName(), filter);
                 if(serviceReferences!=null && serviceReferences.length > 0 ) {
+                    System.out.println("How many services available? "+serviceReferences.length);
                     return (UIService)systemCtx.getService(serviceReferences[0]);
+                }else{
+                    ServiceReference<?> maoRef = systemCtx.getServiceReference(UIService.class.getName());
+                    return (UIService)systemCtx.getService(maoRef);    
                 }
                 
-                ServiceReference<?> maoRef = systemCtx.getServiceReference(UIService.class.getName());
-                return (UIService)systemCtx.getService(maoRef);
+                
             } catch (InvalidSyntaxException ex) {
                 Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
             }
