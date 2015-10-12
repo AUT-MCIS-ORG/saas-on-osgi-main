@@ -1,0 +1,8 @@
+admin: adminpass,admin,user
+T1: pass,user
+T2: pass,user
+T3: pass,user
+T4: pass,user
+T5: pass,user
+T6: pass,user
+T7: pass,user

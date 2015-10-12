@@ -5,11 +5,15 @@
  */
 package com.sa.osgi.system;
 
+import java.io.FileInputStream;
+import java.util.List;
+
 /**
  *
  * @author mao
  */
 public interface MaoService {
-    public String getAllBundles();
-    public boolean installBundle(String symbolicName, String version);
+    public List<String> getAllBundles(Credential cred);
+    public boolean installBundle(String fileName);
+    public boolean installBundle(FileInputStream fin);
 }

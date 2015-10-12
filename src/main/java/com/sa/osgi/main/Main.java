@@ -18,8 +18,9 @@
  */
 package com.sa.osgi.main;
 
-import com.sa.osgi.identify.Credential;
+import com.sa.osgi.system.Credential;
 import com.sa.osgi.system.MaoService;
+import com.sa.osgi.system.ServiceFactory;
 import com.sa.osgi.system.UIService;
 import java.io.*;
 import java.net.MalformedURLException;
@@ -29,6 +30,9 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.felix.framework.util.Util;
+import org.eclipse.jetty.security.HashLoginService;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.webapp.WebAppContext;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
@@ -39,49 +43,55 @@ import org.osgi.framework.ServiceReference;
 import org.osgi.framework.launch.Framework;
 import org.osgi.framework.launch.FrameworkFactory;
 
-import static spark.Spark.*;
-import spark.template.freemarker.FreeMarkerEngine;
-import spark.ModelAndView;
-import static spark.Spark.get;
+//import static spark.Spark.*;
+//import spark.template.freemarker.FreeMarkerEngine;
+//import spark.ModelAndView;
+//import static spark.Spark.get;
 
 /**
  * <p>
- * This class is the default way to instantiate and execute the framework. It is not
- * intended to be the only way to instantiate and execute the framework; rather, it is
- * one example of how to do so. When embedding the framework in a host application,
- * this class can serve as a simple guide of how to do so. It may even be
- * worthwhile to reuse some of its property handling capabilities.
+ * This class is the default way to instantiate and execute the framework. It is
+ * not intended to be the only way to instantiate and execute the framework;
+ * rather, it is one example of how to do so. When embedding the framework in a
+ * host application, this class can serve as a simple guide of how to do so. It
+ * may even be worthwhile to reuse some of its property handling capabilities.
  * </p>
-**/
-public class Main
-{
+*
+ */
+public class Main {
+
     /**
      * Switch for specifying bundle directory.
-    **/
+    *
+     */
     public static final String BUNDLE_DIR_SWITCH = "-b";
 
     /**
-     * The property name used to specify whether the launcher should
-     * install a shutdown hook.
-    **/
+     * The property name used to specify whether the launcher should install a
+     * shutdown hook.
+    *
+     */
     public static final String SHUTDOWN_HOOK_PROP = "felix.shutdown.hook";
     /**
-     * The property name used to specify an URL to the system
-     * property file.
-    **/
+     * The property name used to specify an URL to the system property file.
+    *
+     */
     public static final String SYSTEM_PROPERTIES_PROP = "felix.system.properties";
     /**
      * The default name used for the system properties file.
-    **/
+    *
+     */
     public static final String SYSTEM_PROPERTIES_FILE_VALUE = "system.properties";
     /**
-     * The property name used to specify an URL to the configuration
-     * property file to be used for the created the framework instance.
-    **/
+     * The property name used to specify an URL to the configuration property
+     * file to be used for the created the framework instance.
+    *
+     */
     public static final String CONFIG_PROPERTIES_PROP = "felix.config.properties";
     /**
      * The default name used for the configuration properties file.
-    **/
+    *
+     */
     public static final String CONFIG_PROPERTIES_FILE_VALUE = "config.properties";
     /**
      * Name of the configuration directory.
@@ -90,154 +100,151 @@ public class Main
 
     private static Framework m_fwk = null;
     private static BundleContext systemCtx = null;
+    private static Server jettyServer = null;
+
     /**
      * <p>
      * This method performs the main task of constructing an framework instance
-     * and starting its execution. The following functions are performed
-     * when invoked:
+     * and starting its execution. The following functions are performed when
+     * invoked:
      * </p>
      * <ol>
-     *   <li><i><b>Examine and verify command-line arguments.</b></i> The launcher
-     *       accepts a "<tt>-b</tt>" command line switch to set the bundle auto-deploy
-     *       directory and a single argument to set the bundle cache directory.
-     *   </li>
-     *   <li><i><b>Read the system properties file.</b></i> This is a file
-     *       containing properties to be pushed into <tt>System.setProperty()</tt>
-     *       before starting the framework. This mechanism is mainly shorthand
-     *       for people starting the framework from the command line to avoid having
-     *       to specify a bunch of <tt>-D</tt> system property definitions.
-     *       The only properties defined in this file that will impact the framework's
-     *       behavior are the those concerning setting HTTP proxies, such as
-     *       <tt>http.proxyHost</tt>, <tt>http.proxyPort</tt>, and
-     *       <tt>http.proxyAuth</tt>. Generally speaking, the framework does
-     *       not use system properties at all.
-     *   </li>
-     *   <li><i><b>Read the framework's configuration property file.</b></i> This is
-     *       a file containing properties used to configure the framework
-     *       instance and to pass configuration information into
-     *       bundles installed into the framework instance. The configuration
-     *       property file is called <tt>config.properties</tt> by default
-     *       and is located in the <tt>conf/</tt> directory of the Felix
-     *       installation directory, which is the parent directory of the
-     *       directory containing the <tt>felix.jar</tt> file. It is possible
-     *       to use a different location for the property file by specifying
-     *       the desired URL using the <tt>felix.config.properties</tt>
-     *       system property; this should be set using the <tt>-D</tt> syntax
-     *       when executing the JVM. If the <tt>config.properties</tt> file
-     *       cannot be found, then default values are used for all configuration
-     *       properties. Refer to the
-     *       <a href="Felix.html#Felix(java.util.Map)"><tt>Felix</tt></a>
-     *       constructor documentation for more information on framework
-     *       configuration properties.
-     *   </li>
-     *   <li><i><b>Copy configuration properties specified as system properties
-     *       into the set of configuration properties.</b></i> Even though the
-     *       Felix framework does not consult system properties for configuration
-     *       information, sometimes it is convenient to specify them on the command
-     *       line when launching Felix. To make this possible, the Felix launcher
-     *       copies any configuration properties specified as system properties
-     *       into the set of configuration properties passed into Felix.
-     *   </li>
-     *   <li><i><b>Add shutdown hook.</b></i> To make sure the framework shutdowns
-     *       cleanly, the launcher installs a shutdown hook; this can be disabled
-     *       with the <tt>felix.shutdown.hook</tt> configuration property.
-     *   </li>
-     *   <li><i><b>Create and initialize a framework instance.</b></i> The OSGi standard
-     *       <tt>FrameworkFactory</tt> is retrieved from <tt>META-INF/services</tt>
-     *       and used to create a framework instance with the configuration properties.
-     *   </li>
-     *   <li><i><b>Auto-deploy bundles.</b></i> All bundles in the auto-deploy
-     *       directory are deployed into the framework instance.
-     *   </li>
-     *   <li><i><b>Start the framework.</b></i> The framework is started and
-     *       the launcher thread waits for the framework to shutdown.
-     *   </li>
+     * <li><i><b>Examine and verify command-line arguments.</b></i> The launcher
+     * accepts a "<tt>-b</tt>" command line switch to set the bundle auto-deploy
+     * directory and a single argument to set the bundle cache directory.
+     * </li>
+     * <li><i><b>Read the system properties file.</b></i> This is a file
+     * containing properties to be pushed into <tt>System.setProperty()</tt>
+     * before starting the framework. This mechanism is mainly shorthand for
+     * people starting the framework from the command line to avoid having to
+     * specify a bunch of <tt>-D</tt> system property definitions. The only
+     * properties defined in this file that will impact the framework's behavior
+     * are the those concerning setting HTTP proxies, such as
+     * <tt>http.proxyHost</tt>, <tt>http.proxyPort</tt>, and
+     * <tt>http.proxyAuth</tt>. Generally speaking, the framework does not use
+     * system properties at all.
+     * </li>
+     * <li><i><b>Read the framework's configuration property file.</b></i> This
+     * is a file containing properties used to configure the framework instance
+     * and to pass configuration information into bundles installed into the
+     * framework instance. The configuration property file is called
+     * <tt>config.properties</tt> by default and is located in the
+     * <tt>conf/</tt> directory of the Felix installation directory, which is
+     * the parent directory of the directory containing the <tt>felix.jar</tt>
+     * file. It is possible to use a different location for the property file by
+     * specifying the desired URL using the <tt>felix.config.properties</tt>
+     * system property; this should be set using the <tt>-D</tt> syntax when
+     * executing the JVM. If the <tt>config.properties</tt> file cannot be
+     * found, then default values are used for all configuration properties.
+     * Refer to the
+     * <a href="Felix.html#Felix(java.util.Map)"><tt>Felix</tt></a>
+     * constructor documentation for more information on framework configuration
+     * properties.
+     * </li>
+     * <li><i><b>Copy configuration properties specified as system properties
+     * into the set of configuration properties.</b></i> Even though the Felix
+     * framework does not consult system properties for configuration
+     * information, sometimes it is convenient to specify them on the command
+     * line when launching Felix. To make this possible, the Felix launcher
+     * copies any configuration properties specified as system properties into
+     * the set of configuration properties passed into Felix.
+     * </li>
+     * <li><i><b>Add shutdown hook.</b></i> To make sure the framework shutdowns
+     * cleanly, the launcher installs a shutdown hook; this can be disabled with
+     * the <tt>felix.shutdown.hook</tt> configuration property.
+     * </li>
+     * <li><i><b>Create and initialize a framework instance.</b></i> The OSGi
+     * standard
+     * <tt>FrameworkFactory</tt> is retrieved from <tt>META-INF/services</tt>
+     * and used to create a framework instance with the configuration
+     * properties.
+     * </li>
+     * <li><i><b>Auto-deploy bundles.</b></i> All bundles in the auto-deploy
+     * directory are deployed into the framework instance.
+     * </li>
+     * <li><i><b>Start the framework.</b></i> The framework is started and the
+     * launcher thread waits for the framework to shutdown.
+     * </li>
      * </ol>
      * <p>
-     * It should be noted that simply starting an instance of the framework is not
-     * enough to create an interactive session with it. It is necessary to install
-     * and start bundles that provide a some means to interact with the framework;
-     * this is generally done by bundles in the auto-deploy directory or specifying
-     * an "auto-start" property in the configuration property file. If no bundles
-     * providing a means to interact with the framework are installed or if the
-     * configuration property file cannot be found, the framework will appear to
-     * be hung or deadlocked. This is not the case, it is executing correctly,
-     * there is just no way to interact with it.
+     * It should be noted that simply starting an instance of the framework is
+     * not enough to create an interactive session with it. It is necessary to
+     * install and start bundles that provide a some means to interact with the
+     * framework; this is generally done by bundles in the auto-deploy directory
+     * or specifying an "auto-start" property in the configuration property
+     * file. If no bundles providing a means to interact with the framework are
+     * installed or if the configuration property file cannot be found, the
+     * framework will appear to be hung or deadlocked. This is not the case, it
+     * is executing correctly, there is just no way to interact with it.
      * </p>
      * <p>
      * The launcher provides two ways to deploy bundles into a framework at
      * startup, which have associated configuration properties:
      * </p>
      * <ul>
-     *   <li>Bundle auto-deploy - Automatically deploys all bundles from a
-     *       specified directory, controlled by the following configuration
-     *       properties:
-     *     <ul>
-     *       <li><tt>felix.auto.deploy.dir</tt> - Specifies the auto-deploy directory
-     *           from which bundles are automatically deploy at framework startup.
-     *           The default is the <tt>bundle/</tt> directory of the current directory.
-     *       </li>
-     *       <li><tt>felix.auto.deploy.action</tt> - Specifies the auto-deploy actions
-     *           to be found on bundle JAR files found in the auto-deploy directory.
-     *           The possible actions are <tt>install</tt>, <tt>update</tt>,
-     *           <tt>start</tt>, and <tt>uninstall</tt>. If no actions are specified,
-     *           then the auto-deploy directory is not processed. There is no default
-     *           value for this property.
-     *       </li>
-     *     </ul>
-     *   </li>
-     *   <li>Bundle auto-properties - Configuration properties which specify URLs
-     *       to bundles to install/start:
-     *     <ul>
-     *       <li><tt>felix.auto.install.N</tt> - Space-delimited list of bundle
-     *           URLs to automatically install when the framework is started,
-     *           where <tt>N</tt> is the start level into which the bundle will be
-     *           installed (e.g., felix.auto.install.2).
-     *       </li>
-     *       <li><tt>felix.auto.start.N</tt> - Space-delimited list of bundle URLs
-     *           to automatically install and start when the framework is started,
-     *           where <tt>N</tt> is the start level into which the bundle will be
-     *           installed (e.g., felix.auto.start.2).
-     *       </li>
-     *     </ul>
-     *   </li>
+     * <li>Bundle auto-deploy - Automatically deploys all bundles from a
+     * specified directory, controlled by the following configuration
+     * properties:
+     * <ul>
+     * <li><tt>felix.auto.deploy.dir</tt> - Specifies the auto-deploy directory
+     * from which bundles are automatically deploy at framework startup. The
+     * default is the <tt>bundle/</tt> directory of the current directory.
+     * </li>
+     * <li><tt>felix.auto.deploy.action</tt> - Specifies the auto-deploy actions
+     * to be found on bundle JAR files found in the auto-deploy directory. The
+     * possible actions are <tt>install</tt>, <tt>update</tt>,
+     * <tt>start</tt>, and <tt>uninstall</tt>. If no actions are specified, then
+     * the auto-deploy directory is not processed. There is no default value for
+     * this property.
+     * </li>
+     * </ul>
+     * </li>
+     * <li>Bundle auto-properties - Configuration properties which specify URLs
+     * to bundles to install/start:
+     * <ul>
+     * <li><tt>felix.auto.install.N</tt> - Space-delimited list of bundle URLs
+     * to automatically install when the framework is started, where <tt>N</tt>
+     * is the start level into which the bundle will be installed (e.g.,
+     * felix.auto.install.2).
+     * </li>
+     * <li><tt>felix.auto.start.N</tt> - Space-delimited list of bundle URLs to
+     * automatically install and start when the framework is started, where
+     * <tt>N</tt> is the start level into which the bundle will be installed
+     * (e.g., felix.auto.start.2).
+     * </li>
+     * </ul>
+     * </li>
      * </ul>
      * <p>
      * These properties should be specified in the <tt>config.properties</tt>
      * so that they can be processed by the launcher during the framework
      * startup process.
      * </p>
-     * @param args Accepts arguments to set the auto-deploy directory and/or
-     *        the bundle cache directory.
+     *
+     * @param args Accepts arguments to set the auto-deploy directory and/or the
+     * bundle cache directory.
      * @throws Exception If an error occurs.
-    **/
-    public static void main(String[] args) throws Exception
-    {
+    *
+     */
+    public static void main(String[] args) throws Exception {
         // Look for bundle directory and/or cache directory.
         // We support at most one argument, which is the bundle
         // cache directory.
         String bundleDir = null;
         String cacheDir = null;
         boolean expectBundleDir = false;
-        for (int i = 0; i < args.length; i++)
-        {
-            if (args[i].equals(BUNDLE_DIR_SWITCH))
-            {
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equals(BUNDLE_DIR_SWITCH)) {
                 expectBundleDir = true;
-            }
-            else if (expectBundleDir)
-            {
+            } else if (expectBundleDir) {
                 bundleDir = args[i];
                 expectBundleDir = false;
-            }
-            else
-            {
+            } else {
                 cacheDir = args[i];
             }
         }
 
-        if ((args.length > 3) || (expectBundleDir && bundleDir == null))
-        {
+        if ((args.length > 3) || (expectBundleDir && bundleDir == null)) {
             System.out.println("Usage: [-b <bundle-deploy-dir>] [<bundle-cache-dir>]");
             System.exit(0);
         }
@@ -249,8 +256,7 @@ public class Main
         Map<String, String> configProps = Main.loadConfigProperties();
         // If no configuration properties were found, then create
         // an empty properties object.
-        if (configProps == null)
-        {
+        if (configProps == null) {
             System.err.println("No " + CONFIG_PROPERTIES_FILE_VALUE + " found.");
             configProps = new HashMap<String, String>();
         }
@@ -260,46 +266,37 @@ public class Main
 
         // If there is a passed in bundle auto-deploy directory, then
         // that overwrites anything in the config file.
-        if (bundleDir != null)
-        {
+        if (bundleDir != null) {
             configProps.put(AutoProcessor.AUTO_DEPLOY_DIR_PROPERTY, bundleDir);
         }
 
         // If there is a passed in bundle cache directory, then
         // that overwrites anything in the config file.
-        if (cacheDir != null)
-        {
+        if (cacheDir != null) {
             configProps.put(Constants.FRAMEWORK_STORAGE, cacheDir);
         }
 
         // If enabled, register a shutdown hook to make sure the framework is
         // cleanly shutdown when the VM exits.
         String enableHook = configProps.get(SHUTDOWN_HOOK_PROP);
-        if ((enableHook == null) || !enableHook.equalsIgnoreCase("false"))
-        {
+        if ((enableHook == null) || !enableHook.equalsIgnoreCase("false")) {
             Runtime.getRuntime().addShutdownHook(new Thread("Felix Shutdown Hook") {
-                public void run()
-                {
-                    try
-                    {
-                        if (m_fwk != null)
-                        {
+                public void run() {
+                    try {
+                        if (m_fwk != null) {
                             m_fwk.stop();
                             m_fwk.waitForStop(0);
                         }
-                    }
-                    catch (Exception ex)
-                    {
+                    } catch (Exception ex) {
                         System.err.println("Error stopping framework: " + ex);
                     }
                 }
             });
         }
 
-        startJettyServer();
         
-        try
-        {
+
+        try {
             // Create an instance of the framework.
             FrameworkFactory factory = getFrameworkFactory();
             m_fwk = factory.newFramework(configProps);
@@ -310,55 +307,53 @@ public class Main
             systemCtx = m_fwk.getBundleContext();
             AutoProcessor.process(configProps, systemCtx);
             FrameworkEvent event;
-            do
-            {
+            
+            startJettyServer();
+            System.out.println("After Start Jetty Server....");
+        
+            do {
                 // Start the framework.
                 m_fwk.start();
                 // Wait for framework to stop to exit the VM.
                 event = m_fwk.waitForStop(0);
-            }
-            // If the framework was updated, then restart it.
+            } // If the framework was updated, then restart it.
             while (event.getType() == FrameworkEvent.STOPPED_UPDATE);
             // Otherwise, exit.
             System.exit(0);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             System.err.println("Could not create framework: " + ex);
             ex.printStackTrace();
             System.exit(0);
         }
+        if(jettyServer != null) jettyServer.join();
     }
 
     /**
      * Simple method to parse META-INF/services file for framework factory.
-     * Currently, it assumes the first non-commented line is the class name
-     * of the framework factory implementation.
+     * Currently, it assumes the first non-commented line is the class name of
+     * the framework factory implementation.
+     *
      * @return The created <tt>FrameworkFactory</tt> instance.
      * @throws Exception if any errors occur.
-    **/
-    private static FrameworkFactory getFrameworkFactory() throws Exception
-    {
+    *
+     */
+    private static FrameworkFactory getFrameworkFactory() throws Exception {
         URL url = Main.class.getClassLoader().getResource(
-            "META-INF/services/org.osgi.framework.launch.FrameworkFactory");
-        if (url != null)
-        {
+                "META-INF/services/org.osgi.framework.launch.FrameworkFactory");
+        if (url != null) {
             BufferedReader br = new BufferedReader(new InputStreamReader(url.openStream()));
-            try
-            {
-                for (String s = br.readLine(); s != null; s = br.readLine())
-                {
+            try {
+                for (String s = br.readLine(); s != null; s = br.readLine()) {
                     s = s.trim();
                     // Try to load first non-empty, non-commented line.
-                    if ((s.length() > 0) && (s.charAt(0) != '#'))
-                    {
+                    if ((s.length() > 0) && (s.charAt(0) != '#')) {
                         return (FrameworkFactory) Class.forName(s).newInstance();
                     }
                 }
-            }
-            finally
-            {
-                if (br != null) br.close();
+            } finally {
+                if (br != null) {
+                    br.close();
+                }
             }
         }
 
@@ -368,19 +363,19 @@ public class Main
     /**
      * <p>
      * Loads the properties in the system property file associated with the
-     * framework installation into <tt>System.setProperty()</tt>. These properties
-     * are not directly used by the framework in anyway. By default, the system
-     * property file is located in the <tt>conf/</tt> directory of the Felix
-     * installation directory and is called "<tt>system.properties</tt>". The
-     * installation directory of Felix is assumed to be the parent directory of
-     * the <tt>felix.jar</tt> file as found on the system class path property.
-     * The precise file from which to load system properties can be set by
-     * initializing the "<tt>felix.system.properties</tt>" system property to an
-     * arbitrary URL.
+     * framework installation into <tt>System.setProperty()</tt>. These
+     * properties are not directly used by the framework in anyway. By default,
+     * the system property file is located in the <tt>conf/</tt> directory of
+     * the Felix installation directory and is called
+     * "<tt>system.properties</tt>". The installation directory of Felix is
+     * assumed to be the parent directory of the <tt>felix.jar</tt> file as
+     * found on the system class path property. The precise file from which to
+     * load system properties can be set by initializing the
+     * "<tt>felix.system.properties</tt>" system property to an arbitrary URL.
      * </p>
-    **/
-    public static void loadSystemProperties()
-    {
+    *
+     */
+    public static void loadSystemProperties() {
         // The system properties file is either specified by a system
         // property or it is in the same directory as the Felix JAR file.
         // Try to load it from one of these places.
@@ -388,48 +383,36 @@ public class Main
         // See if the property URL was specified as a property.
         URL propURL = null;
         String custom = System.getProperty(SYSTEM_PROPERTIES_PROP);
-        if (custom != null)
-        {
-            try
-            {
+        if (custom != null) {
+            try {
                 propURL = new URL(custom);
-            }
-            catch (MalformedURLException ex)
-            {
+            } catch (MalformedURLException ex) {
                 System.err.print("Main: " + ex);
                 return;
             }
-        }
-        else
-        {
+        } else {
             // Determine where the configuration directory is by figuring
             // out where felix.jar is located on the system class path.
             File confDir = null;
             String classpath = System.getProperty("java.class.path");
             int index = classpath.toLowerCase().indexOf("felix.jar");
             int start = classpath.lastIndexOf(File.pathSeparator, index) + 1;
-            if (index >= start)
-            {
+            if (index >= start) {
                 // Get the path of the felix.jar file.
                 String jarLocation = classpath.substring(start, index);
                 // Calculate the conf directory based on the parent
                 // directory of the felix.jar directory.
                 confDir = new File(
-                    new File(new File(jarLocation).getAbsolutePath()).getParent(),
-                    CONFIG_DIRECTORY);
-            }
-            else
-            {
+                        new File(new File(jarLocation).getAbsolutePath()).getParent(),
+                        CONFIG_DIRECTORY);
+            } else {
                 // Can't figure it out so use the current directory as default.
                 confDir = new File(System.getProperty("user.dir"), CONFIG_DIRECTORY);
             }
 
-            try
-            {
+            try {
                 propURL = new File(confDir, SYSTEM_PROPERTIES_FILE_VALUE).toURL();
-            }
-            catch (MalformedURLException ex)
-            {
+            } catch (MalformedURLException ex) {
                 System.err.print("Main: " + ex);
                 return;
             }
@@ -438,59 +421,54 @@ public class Main
         // Read the properties file.
         Properties props = new Properties();
         InputStream is = null;
-        try
-        {
+        try {
             is = propURL.openConnection().getInputStream();
             props.load(is);
             is.close();
-        }
-        catch (FileNotFoundException ex)
-        {
+        } catch (FileNotFoundException ex) {
             // Ignore file not found.
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             System.err.println(
-                "Main: Error loading system properties from " + propURL);
+                    "Main: Error loading system properties from " + propURL);
             System.err.println("Main: " + ex);
-            try
-            {
-                if (is != null) is.close();
-            }
-            catch (IOException ex2)
-            {
+            try {
+                if (is != null) {
+                    is.close();
+                }
+            } catch (IOException ex2) {
                 // Nothing we can do.
             }
             return;
         }
 
         // Perform variable substitution on specified properties.
-        for (Enumeration e = props.propertyNames(); e.hasMoreElements(); )
-        {
+        for (Enumeration e = props.propertyNames(); e.hasMoreElements();) {
             String name = (String) e.nextElement();
             System.setProperty(name,
-                Util.substVars(props.getProperty(name), name, null, null));
+                    Util.substVars(props.getProperty(name), name, null, null));
         }
     }
 
     /**
      * <p>
      * Loads the configuration properties in the configuration property file
-     * associated with the framework installation; these properties
-     * are accessible to the framework and to bundles and are intended
-     * for configuration purposes. By default, the configuration property
-     * file is located in the <tt>conf/</tt> directory of the Felix
-     * installation directory and is called "<tt>config.properties</tt>".
-     * The installation directory of Felix is assumed to be the parent
-     * directory of the <tt>felix.jar</tt> file as found on the system class
-     * path property. The precise file from which to load configuration
-     * properties can be set by initializing the "<tt>felix.config.properties</tt>"
-     * system property to an arbitrary URL.
+     * associated with the framework installation; these properties are
+     * accessible to the framework and to bundles and are intended for
+     * configuration purposes. By default, the configuration property file is
+     * located in the <tt>conf/</tt> directory of the Felix installation
+     * directory and is called "<tt>config.properties</tt>". The installation
+     * directory of Felix is assumed to be the parent directory of the
+     * <tt>felix.jar</tt> file as found on the system class path property. The
+     * precise file from which to load configuration properties can be set by
+     * initializing the "<tt>felix.config.properties</tt>" system property to an
+     * arbitrary URL.
      * </p>
-     * @return A <tt>Properties</tt> instance or <tt>null</tt> if there was an error.
-    **/
-    public static Map<String, String> loadConfigProperties()
-    {
+     *
+     * @return A <tt>Properties</tt> instance or <tt>null</tt> if there was an
+     * error.
+    *
+     */
+    public static Map<String, String> loadConfigProperties() {
         // The config properties file is either specified by a system
         // property or it is in the conf/ directory of the Felix
         // installation directory.  Try to load it from one of these
@@ -499,48 +477,36 @@ public class Main
         // See if the property URL was specified as a property.
         URL propURL = null;
         String custom = System.getProperty(CONFIG_PROPERTIES_PROP);
-        if (custom != null)
-        {
-            try
-            {
+        if (custom != null) {
+            try {
                 propURL = new URL(custom);
-            }
-            catch (MalformedURLException ex)
-            {
+            } catch (MalformedURLException ex) {
                 System.err.print("Main: " + ex);
                 return null;
             }
-        }
-        else
-        {
+        } else {
             // Determine where the configuration directory is by figuring
             // out where felix.jar is located on the system class path.
             File confDir = null;
             String classpath = System.getProperty("java.class.path");
             int index = classpath.toLowerCase().indexOf("felix.jar");
             int start = classpath.lastIndexOf(File.pathSeparator, index) + 1;
-            if (index >= start)
-            {
+            if (index >= start) {
                 // Get the path of the felix.jar file.
                 String jarLocation = classpath.substring(start, index);
                 // Calculate the conf directory based on the parent
                 // directory of the felix.jar directory.
                 confDir = new File(
-                    new File(new File(jarLocation).getAbsolutePath()).getParent(),
-                    CONFIG_DIRECTORY);
-            }
-            else
-            {
+                        new File(new File(jarLocation).getAbsolutePath()).getParent(),
+                        CONFIG_DIRECTORY);
+            } else {
                 // Can't figure it out so use the current directory as default.
                 confDir = new File(System.getProperty("user.dir"), CONFIG_DIRECTORY);
             }
 
-            try
-            {
+            try {
                 propURL = new File(confDir, CONFIG_PROPERTIES_FILE_VALUE).toURL();
-            }
-            catch (MalformedURLException ex)
-            {
+            } catch (MalformedURLException ex) {
                 System.err.print("Main: " + ex);
                 return null;
             }
@@ -549,22 +515,18 @@ public class Main
         // Read the properties file.
         Properties props = new Properties();
         InputStream is = null;
-        try
-        {
+        try {
             // Try to load config.properties.
             is = propURL.openConnection().getInputStream();
             props.load(is);
             is.close();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // Try to close input stream if we have one.
-            try
-            {
-                if (is != null) is.close();
-            }
-            catch (IOException ex2)
-            {
+            try {
+                if (is != null) {
+                    is.close();
+                }
+            } catch (IOException ex2) {
                 // Nothing we can do.
             }
 
@@ -574,24 +536,20 @@ public class Main
         // Perform variable substitution for system properties and
         // convert to dictionary.
         Map<String, String> map = new HashMap<String, String>();
-        for (Enumeration e = props.propertyNames(); e.hasMoreElements(); )
-        {
+        for (Enumeration e = props.propertyNames(); e.hasMoreElements();) {
             String name = (String) e.nextElement();
             map.put(name,
-                Util.substVars(props.getProperty(name), name, null, props));
+                    Util.substVars(props.getProperty(name), name, null, props));
         }
 
         return map;
     }
 
-    public static void copySystemProperties(Map configProps)
-    {
+    public static void copySystemProperties(Map configProps) {
         for (Enumeration e = System.getProperties().propertyNames();
-             e.hasMoreElements(); )
-        {
+                e.hasMoreElements();) {
             String key = (String) e.nextElement();
-            if (key.startsWith("felix.") || key.startsWith("org.osgi.framework."))
-            {
+            if (key.startsWith("felix.") || key.startsWith("org.osgi.framework.")) {
                 configProps.put(key, System.getProperty(key));
             }
         }
@@ -599,74 +557,118 @@ public class Main
 
     private static void startJettyServer() {
         System.out.print("Start Jetty Server...");
-            port(Integer.valueOf(System.getenv("PORT")));
-    staticFileLocation("/public");
+        
+        Thread t = new Thread(){
 
-    Main APP = new Main();
-    
-    get("/", (req, res) -> "Hello World");
-    get("/listRB",(req, res) -> {
-        MaoService service = APP.getMaoService();
-        return service.getAllBundles();
-    });
-    get("/lb",(req, res) -> {
-        StringBuilder builder = new StringBuilder();
-        if(systemCtx != null){
-            Bundle[] bundles = systemCtx.getBundles();
-            for(Bundle b:bundles){
-                builder.append("symbolic.name: "+b.getSymbolicName()+",version: "+b.getVersion()+",location: "+b.getLocation()+"<br>");
-            }            
-        }
-        return builder.toString();
-    });
-    
-    get("/install", (req, res) -> {
-            String name = req.queryParams("name");
-            String version = req.queryParams("version");
-            
-            if(name == null || version == null){
-                return "bundle: "+name+", version: "+version +"NULL error!";
-            }else{
-                MaoService service = APP.getMaoService();
-                boolean b = service.installBundle(name,version);
-                return "installed bundle: "+name+", result: "+b;
+            @Override
+            public void run() {
+                //1. Creating the server on port 8080
+                ServiceFactory.INSTANCE.init(systemCtx);
+
+                String portStr = System.getenv("PORT");
+                int port = portStr == null ? 8080 : Integer.parseInt(portStr);
+                jettyServer = new Server(port);
+
+                        //2. Creating the WebAppContext for the created content
+        //		WebAppContext ctx = new WebAppContext();
+        //		ctx.setResourceBase("src/main/webapp");
+                WebAppContext webapp = new WebAppContext();
+                webapp.setContextPath("/");
+                webapp.setWar("saas.war");
+
+                //3. Creating the LoginService for the realm
+                HashLoginService loginService = new HashLoginService("UserRealm");
+
+                //4. Setting the realm configuration there the users, passwords and roles reside
+                loginService.setConfig("db.realm.txt");
+
+                //5. Appending the loginService to the Server
+                jettyServer.addBean(loginService);
+
+                //6. Setting the handler
+                jettyServer.setHandler(webapp);
+
+                try {
+                    //7. Starting the Server
+                    jettyServer.start();
+                    jettyServer.join();
+                } catch (Exception ex) {
+                    Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
             
-            
-        });
-    
-    get("/welcome", (req,res) ->{
-        StringBuilder buffer = new StringBuilder();
-        String userID = req.queryParams("user");
-        String tenantID = req.queryParams("tenant");
-        Credential cre = new Credential();
-        cre.setTennantName(tenantID);
-        cre.setUserName(userID);
+        };
         
-        UIService uiService = APP.getUIService(cre);
-        System.out.println("ui service obj: "+uiService.toString());
-        String color = uiService.getBackgroundColor();
-        String dateFormatter = uiService.getDateFormat();
+        t.start();
         
-        SimpleDateFormat sdf = new SimpleDateFormat(dateFormatter);
-        String nowString = sdf.format(new Date()); 
-        
-        buffer.append("<html>");        
-        buffer.append("<body >");  
-        
-        
-        buffer.append("<table style=\"background:"+color+"\">");  
-        buffer.append("<tr><td>Background Color: "+color +"</td></tr>");
-        buffer.append("<tr><td>Formatter: "+nowString +"</td></tr>");
-        buffer.append("</table>");  
-        
-        buffer.append("</body>");        
-        buffer.append("</html>");        
-        
-        
-        
-        return buffer.toString();
-    });
+//            port(Integer.valueOf(System.getenv("PORT")));
+//    staticFileLocation("/public");
+//
+//    Main APP = new Main();
+//    
+//    get("/", (req, res) -> "Hello World");
+//    get("/listRB",(req, res) -> {
+//        MaoService service = APP.getMaoService();
+//        return service.getAllBundles();
+//    });
+//    get("/lb",(req, res) -> {
+//        StringBuilder builder = new StringBuilder();
+//        if(systemCtx != null){
+//            Bundle[] bundles = systemCtx.getBundles();
+//            for(Bundle b:bundles){
+//                builder.append("symbolic.name: "+b.getSymbolicName()+",version: "+b.getVersion()+",location: "+b.getLocation()+"<br>");
+//            }            
+//        }
+//        return builder.toString();
+//    });
+//    
+//    get("/install", (req, res) -> {
+//            String name = req.queryParams("name");
+//            String version = req.queryParams("version");
+//            
+//            if(name == null || version == null){
+//                return "bundle: "+name+", version: "+version +"NULL error!";
+//            }else{
+//                MaoService service = APP.getMaoService();
+//                boolean b = service.installBundle(name,version);
+//                return "installed bundle: "+name+", result: "+b;
+//            }
+//            
+//            
+//        });
+//    
+//    get("/welcome", (req,res) ->{
+//        StringBuilder buffer = new StringBuilder();
+//        String userID = req.queryParams("user");
+//        String tenantID = req.queryParams("tenant");
+//        Credential cre = new Credential();
+//        cre.setTennantName(tenantID);
+//        cre.setUserName(userID);
+//        
+//        UIService uiService = APP.getUIService(cre);
+//        System.out.println("ui service obj: "+uiService.toString());
+//        String color = uiService.getBackgroundColor();
+//        String dateFormatter = uiService.getDateFormat();
+//        
+//        SimpleDateFormat sdf = new SimpleDateFormat(dateFormatter);
+//        String nowString = sdf.format(new Date()); 
+//        
+//        buffer.append("<html>");        
+//        buffer.append("<body >");  
+//        
+//        
+//        buffer.append("<table style=\"background:"+color+"\">");  
+//        buffer.append("<tr><td>Background Color: "+color +"</td></tr>");
+//        buffer.append("<tr><td>Formatter: "+nowString +"</td></tr>");
+//        buffer.append("</table>");  
+//        
+//        buffer.append("</body>");        
+//        buffer.append("</html>");        
+//        
+//        
+//        
+//        return buffer.toString();
+//    });
 //    get("/", (request, response) -> {
 //            Map<String, Object> attributes = new HashMap<>();
 //            attributes.put("message", "Hello World!");
@@ -674,62 +676,62 @@ public class Main
 //            return new ModelAndView(attributes, "index.ftl");
 //        }, new FreeMarkerEngine());
     }
-    private static MaoService maoService;
-    private static UIService uiService;
-    
-    private MaoService getMaoService(){
-        if (maoService != null){
-            return maoService;
-        }
-        if(systemCtx!=null){
-            ServiceReference<?> maoRef = systemCtx.getServiceReference(MaoService.class.getName());
-            maoService = (MaoService)systemCtx.getService(maoRef);
-        }
-        
-        return maoService;
-    }
-    
-    /**
-     * http://www.ietf.org/rfc/rfc1960.txt
-     * @param credential
-     * @return 
-     */
-    private UIService getUIService(Credential credential){
-
-        if(systemCtx!=null){
-            try {
-                
-                String defaultFilter = "(&(objectClass=" + UIService.class.getName() +")"
-                           +  "(vendor=SA) )";
-                
-                String tenantName = credential.getTennantName();
-                String filter = null;
-                if(tenantName!=null){
-                    filter = "(&(objectClass=" + UIService.class.getName() +")"
-                           +  "(vendor="+credential.getTennantName()+") )";
-                }else{
-                    filter = defaultFilter;
-                }                
-                
-                System.out.println("filter: "+filter);
-                ServiceReference<?>[] serviceReferences = systemCtx.getServiceReferences(UIService.class.getName(), filter);
-                if(serviceReferences!=null && serviceReferences.length > 0 ) {
-                    System.out.println("How many services available? "+serviceReferences.length);
-                    return (UIService)systemCtx.getService(serviceReferences[0]);
-                }else{
-                    serviceReferences = systemCtx.getServiceReferences(UIService.class.getName(), defaultFilter);
-                    assert(serviceReferences.length == 1);
-                    
-                    ServiceReference<?> maoRef = serviceReferences[0];
-                    return (UIService)systemCtx.getService(maoRef);    
-                }
-                
-                
-            } catch (InvalidSyntaxException ex) {
-                Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-        
-        return uiService;
-    }
+//    private static MaoService maoService;
+//    private static UIService uiService;
+//
+//    private MaoService getMaoService() {
+//        if (maoService != null) {
+//            return maoService;
+//        }
+//        if (systemCtx != null) {
+//            ServiceReference<?> maoRef = systemCtx.getServiceReference(MaoService.class.getName());
+//            maoService = (MaoService) systemCtx.getService(maoRef);
+//        }
+//
+//        return maoService;
+//    }
+//
+//    /**
+//     * http://www.ietf.org/rfc/rfc1960.txt
+//     *
+//     * @param credential
+//     * @return
+//     */
+//    private UIService getUIService(Credential credential) {
+//
+//        if (systemCtx != null) {
+//            try {
+//
+//                String defaultFilter = "(&(objectClass=" + UIService.class.getName() + ")"
+//                        + "(vendor=SA) )";
+//
+//                String tenantName = credential.getTennantName();
+//                String filter = null;
+//                if (tenantName != null) {
+//                    filter = "(&(objectClass=" + UIService.class.getName() + ")"
+//                            + "(vendor=" + credential.getTennantName() + ") )";
+//                } else {
+//                    filter = defaultFilter;
+//                }
+//
+//                System.out.println("filter: " + filter);
+//                ServiceReference<?>[] serviceReferences = systemCtx.getServiceReferences(UIService.class.getName(), filter);
+//                if (serviceReferences != null && serviceReferences.length > 0) {
+//                    System.out.println("How many services available? " + serviceReferences.length);
+//                    return (UIService) systemCtx.getService(serviceReferences[0]);
+//                } else {
+//                    serviceReferences = systemCtx.getServiceReferences(UIService.class.getName(), defaultFilter);
+//                    assert (serviceReferences.length == 1);
+//
+//                    ServiceReference<?> maoRef = serviceReferences[0];
+//                    return (UIService) systemCtx.getService(maoRef);
+//                }
+//
+//            } catch (InvalidSyntaxException ex) {
+//                Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+//            }
+//        }
+//
+//        return uiService;
+//    }
 }
