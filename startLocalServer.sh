@@ -1,0 +1,1 @@
+java -Dfelix.config.properties=file:target/config.properties -cp target/dependency/*:target/com.sa.osgi.saas-1.0.0-mao.jar com.sa.osgi.main.Main
