@@ -18,28 +18,14 @@
  */
 package com.sa.osgi.main;
 
-import com.sa.osgi.system.Credential;
-import com.sa.osgi.system.MaoService;
-import com.sa.osgi.system.ServiceFactory;
-import com.sa.osgi.system.UIService;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.felix.framework.util.Util;
-import org.eclipse.jetty.security.HashLoginService;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.webapp.WebAppContext;
-import org.osgi.framework.Bundle;
-import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkEvent;
-import org.osgi.framework.InvalidSyntaxException;
-import org.osgi.framework.ServiceReference;
 import org.osgi.framework.launch.Framework;
 import org.osgi.framework.launch.FrameworkFactory;
 
@@ -100,7 +86,6 @@ public class Main {
 
     private static Framework m_fwk = null;
     private static BundleContext systemCtx = null;
-    private static Server jettyServer = null;
 
     /**
      * <p>
@@ -325,7 +310,7 @@ public class Main {
             ex.printStackTrace();
             System.exit(0);
         }
-        if(jettyServer != null) jettyServer.join();
+
     }
 
     /**
@@ -558,180 +543,8 @@ public class Main {
     private static void startJettyServer() {
         System.out.print("Start Jetty Server...");
         
-        Thread t = new Thread(){
-
-            @Override
-            public void run() {
-                //1. Creating the server on port 8080
-                ServiceFactory.INSTANCE.init(systemCtx);
-
-                String portStr = System.getenv("PORT");
-                int port = portStr == null ? 8080 : Integer.parseInt(portStr);
-                jettyServer = new Server(port);
-
-                        //2. Creating the WebAppContext for the created content
-        //		WebAppContext ctx = new WebAppContext();
-        //		ctx.setResourceBase("src/main/webapp");
-                WebAppContext webapp = new WebAppContext();
-                webapp.setContextPath("/");
-                webapp.setWar("saas.war");
-
-                //3. Creating the LoginService for the realm
-                HashLoginService loginService = new HashLoginService("UserRealm");
-
-                //4. Setting the realm configuration there the users, passwords and roles reside
-                loginService.setConfig("db.realm.txt");
-
-                //5. Appending the loginService to the Server
-                jettyServer.addBean(loginService);
-
-                //6. Setting the handler
-                jettyServer.setHandler(webapp);
-
-                try {
-                    //7. Starting the Server
-                    jettyServer.start();
-                    jettyServer.join();
-                } catch (Exception ex) {
-                    Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
-            
-        };
+        Thread t = new JettyServerThread(systemCtx);
         
         t.start();
-        
-//            port(Integer.valueOf(System.getenv("PORT")));
-//    staticFileLocation("/public");
-//
-//    Main APP = new Main();
-//    
-//    get("/", (req, res) -> "Hello World");
-//    get("/listRB",(req, res) -> {
-//        MaoService service = APP.getMaoService();
-//        return service.getAllBundles();
-//    });
-//    get("/lb",(req, res) -> {
-//        StringBuilder builder = new StringBuilder();
-//        if(systemCtx != null){
-//            Bundle[] bundles = systemCtx.getBundles();
-//            for(Bundle b:bundles){
-//                builder.append("symbolic.name: "+b.getSymbolicName()+",version: "+b.getVersion()+",location: "+b.getLocation()+"<br>");
-//            }            
-//        }
-//        return builder.toString();
-//    });
-//    
-//    get("/install", (req, res) -> {
-//            String name = req.queryParams("name");
-//            String version = req.queryParams("version");
-//            
-//            if(name == null || version == null){
-//                return "bundle: "+name+", version: "+version +"NULL error!";
-//            }else{
-//                MaoService service = APP.getMaoService();
-//                boolean b = service.installBundle(name,version);
-//                return "installed bundle: "+name+", result: "+b;
-//            }
-//            
-//            
-//        });
-//    
-//    get("/welcome", (req,res) ->{
-//        StringBuilder buffer = new StringBuilder();
-//        String userID = req.queryParams("user");
-//        String tenantID = req.queryParams("tenant");
-//        Credential cre = new Credential();
-//        cre.setTennantName(tenantID);
-//        cre.setUserName(userID);
-//        
-//        UIService uiService = APP.getUIService(cre);
-//        System.out.println("ui service obj: "+uiService.toString());
-//        String color = uiService.getBackgroundColor();
-//        String dateFormatter = uiService.getDateFormat();
-//        
-//        SimpleDateFormat sdf = new SimpleDateFormat(dateFormatter);
-//        String nowString = sdf.format(new Date()); 
-//        
-//        buffer.append("<html>");        
-//        buffer.append("<body >");  
-//        
-//        
-//        buffer.append("<table style=\"background:"+color+"\">");  
-//        buffer.append("<tr><td>Background Color: "+color +"</td></tr>");
-//        buffer.append("<tr><td>Formatter: "+nowString +"</td></tr>");
-//        buffer.append("</table>");  
-//        
-//        buffer.append("</body>");        
-//        buffer.append("</html>");        
-//        
-//        
-//        
-//        return buffer.toString();
-//    });
-//    get("/", (request, response) -> {
-//            Map<String, Object> attributes = new HashMap<>();
-//            attributes.put("message", "Hello World!");
-//
-//            return new ModelAndView(attributes, "index.ftl");
-//        }, new FreeMarkerEngine());
     }
-//    private static MaoService maoService;
-//    private static UIService uiService;
-//
-//    private MaoService getMaoService() {
-//        if (maoService != null) {
-//            return maoService;
-//        }
-//        if (systemCtx != null) {
-//            ServiceReference<?> maoRef = systemCtx.getServiceReference(MaoService.class.getName());
-//            maoService = (MaoService) systemCtx.getService(maoRef);
-//        }
-//
-//        return maoService;
-//    }
-//
-//    /**
-//     * http://www.ietf.org/rfc/rfc1960.txt
-//     *
-//     * @param credential
-//     * @return
-//     */
-//    private UIService getUIService(Credential credential) {
-//
-//        if (systemCtx != null) {
-//            try {
-//
-//                String defaultFilter = "(&(objectClass=" + UIService.class.getName() + ")"
-//                        + "(vendor=SA) )";
-//
-//                String tenantName = credential.getTennantName();
-//                String filter = null;
-//                if (tenantName != null) {
-//                    filter = "(&(objectClass=" + UIService.class.getName() + ")"
-//                            + "(vendor=" + credential.getTennantName() + ") )";
-//                } else {
-//                    filter = defaultFilter;
-//                }
-//
-//                System.out.println("filter: " + filter);
-//                ServiceReference<?>[] serviceReferences = systemCtx.getServiceReferences(UIService.class.getName(), filter);
-//                if (serviceReferences != null && serviceReferences.length > 0) {
-//                    System.out.println("How many services available? " + serviceReferences.length);
-//                    return (UIService) systemCtx.getService(serviceReferences[0]);
-//                } else {
-//                    serviceReferences = systemCtx.getServiceReferences(UIService.class.getName(), defaultFilter);
-//                    assert (serviceReferences.length == 1);
-//
-//                    ServiceReference<?> maoRef = serviceReferences[0];
-//                    return (UIService) systemCtx.getService(maoRef);
-//                }
-//
-//            } catch (InvalidSyntaxException ex) {
-//                Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
-//            }
-//        }
-//
-//        return uiService;
-//    }
 }
