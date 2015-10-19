@@ -1,6 +1,7 @@
 echo "Build the main system..."
-cd saas-on-osgi-main/
+#cd saas-on-osgi-main/
 mvn clean install
+
 
 echo
 echo "Build the depenancy services..."
